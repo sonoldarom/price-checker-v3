@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>בדיקת מחיר ללקוח</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      direction: rtl;
+      background-color: #f4f7f6;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      text-align: center;
+      color: #0056b3;
+      margin-top: 0;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    textarea {
+      resize: vertical;
+      height: 100px;
+    }
+    button {
+      background-color: #0056b3;
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      width: 100%;
+      font-weight: bold;
+    }
+    button:hover {
+      background-color: #003d82;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .error {
+      color: #d9534f;
+      background-color: #f9dede;
+      padding: 10px;
+      border-radius: 4px;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    .hidden {
+      display: none;
+    }
+    .user-info {
+      background: #eef2f5;
+      padding: 10px 15px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .months-box {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 10px;
+      background: white;
+    }
+    .months-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .month-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #ccc;
+      border-radius: 16px;
+      padding: 5px 12px;
+      font-size: 15px;
+      background: #f4f7f6;
+      color: #333;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .month-chip input[type="checkbox"] {
+      display: none;
+    }
+    .month-chip:has(input:checked) {
+      background: #0056b3;
+      color: #fff;
+      border-color: #0056b3;
+      font-weight: bold;
+    }
+    .month-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 16px;
+    }
+    .month-item input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+    .select-all-chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid #0056b3;
+      border-radius: 16px;
+      padding: 5px 12px;
+      font-size: 15px;
+      background: white;
+      color: #0056b3;
+      cursor: pointer;
+      user-select: none;
+      font-weight: bold;
+      transition: background-color 0.15s, color 0.15s;
+    }
+    .select-all-chip input[type="checkbox"] {
+      display: none;
+    }
+    .select-all-chip:has(input:checked) {
+      background: #0056b3;
+      color: #fff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #0056b3;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    .not-found {
+      color: #d9534f;
+      font-weight: bold;
+    }
+    .found {
+      color: #28a745;
+      font-weight: bold;
+    }
+    .month-badge {
+      display: inline-block;
+      background: #e7f0fb;
+      color: #0056b3;
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>בדיקת מחיר ללקוח</h2>
+
+    <div id="loginSection">
+      <div id="loginError" class="error hidden"></div>
+      <div class="form-group">
+        <label for="username">שם משתמש:</label>
+        <input type="text" id="username" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label for="password">סיסמה:</label>
+        <input type="password" id="password" autocomplete="current-password">
+      </div>
+      <button id="loginBtn" onclick="handleLogin()">התחבר</button>
+    </div>
+
+    <div id="searchSection" class="hidden">
+      <div class="user-info">
+        <span id="welcomeText"></span>
+        <button onclick="handleLogout()" style="width: auto; padding: 5px 10px; font-size: 14px; background-color: #6c757d;">התנתק</button>
+      </div>
+
+      <div id="searchError" class="error hidden"></div>
+
+      <div class="form-group">
+        <label for="freeTextInput">חיפוש בשפה חופשית:</label>
+        <textarea id="freeTextInput" placeholder='לדוגמה:&#10;לקוח 3974 חודש ספטמבר&#10;לקוחות 3974, 3977 חודשים אוגוסט, ספטמבר'></textarea>
+        <button type="button" id="freeTextBtn" onclick="handleFreeTextSearch()" style="margin-top:8px;">נתח וחפש</button>
+      </div>
+
+      <div class="form-group">
+        <label>מחירונים (ניתן לבחור אחד, כמה, או הכל):</label>
+        <div id="monthsBox" class="months-box">טוען...</div>
+      </div>
+
+      <div class="form-group">
+        <label for="customersInput">מספרי לקוח (ניתן להזין מספר אחד או כמה מופרדים בפסיקים/שורה):</label>
+        <textarea id="customersInput" placeholder="לדוגמה: 3974, 3977"></textarea>
+      </div>
+      <button id="searchBtn" onclick="handleSearch()">חפש מחירים</button>
+
+      <div id="resultsContainer"></div>
+    </div>
+  </div>
+
+  <script>
+    const EXEC_URL = 'https://script.google.com/macros/s/AKfycbyf-JecNS9ZyReWG3_x8G6yFib-gcYRbs0GaSTQmfmQG30ILKH2tcJ-1IpnSDmM6cdI7A/exec';
+    const SHEET_PREFIX = 'מחירים';
+
+    async function callApi(params) {
+      const url = new URL(EXEC_URL);
+      Object.keys(params).forEach(function (key) {
+        if (params[key] !== undefined && params[key] !== null) {
+          url.searchParams.set(key, params[key]);
+        }
+      });
+      const res = await fetch(url.toString());
+      if (!res.ok) {
+        throw new Error('HTTP ' + res.status);
+      }
+      return res.json();
+    }
+
+    function sheetLabel(name) {
+      const trimmed = String(name || '').trim();
+      if (trimmed === SHEET_PREFIX) return 'נוכחי';
+      if (trimmed.indexOf(SHEET_PREFIX) === 0) {
+        const rest = trimmed.substring(SHEET_PREFIX.length).trim();
+        return rest.length > 0 ? rest : 'נוכחי';
+      }
+      return trimmed;
+    }
+
+    window.onload = function() {
+      const savedUser = sessionStorage.getItem('username');
+      const savedPass = sessionStorage.getItem('password');
+      if (savedUser && savedPass) {
+        document.getElementById('username').value = savedUser;
+        document.getElementById('password').value = savedPass;
+        handleLogin();
+      }
+    };
+
+    function monthKey(label) {
+      const m = String(label || '').trim().match(/^(\d{1,2})\.(\d{2,4})$/);
+      if (m) {
+        let month = parseInt(m[1], 10);
+        let year = parseInt(m[2], 10);
+        if (year < 100) year += 2000;
+        return year * 100 + month;
+      }
+      return Infinity;
+    }
+
+    async function loadMonths() {
+      const box = document.getElementById('monthsBox');
+      box.innerHTML = 'טוען...';
+      try {
+        const response = await callApi({ action: 'months' });
+        let months = (response.ok && response.months) ? response.months : [SHEET_PREFIX];
+
+        months = months.slice().sort(function (a, b) {
+          return monthKey(sheetLabel(b)) - monthKey(sheetLabel(a));
+        });
+        window.loadedMonths = months;
+
+        let html = `
+          <label class="select-all-chip" for="selectAllMonths">
+            <input type="checkbox" id="selectAllMonths" onchange="toggleAllMonths()">
+            בחר הכל
+          </label>
+          <div class="months-row">
+        `;
+        months.forEach(function (name, idx) {
+          const id = 'month_' + idx;
+          const isLatest = idx === 0;
+          html += `
+            <label class="month-chip" for="${id}">
+              <input type="checkbox" class="monthCheckbox" id="${id}" value="${name}" ${isLatest ? 'checked' : ''}>
+              ${sheetLabel(name)}
+            </label>
+          `;
+        });
+        html += `</div>`;
+        box.innerHTML = html;
+      } catch (err) {
+        box.innerHTML = `
+          <div class="month-item">
+            <input type="checkbox" class="monthCheckbox" value="${SHEET_PREFIX}" checked>
+            <label style="margin:0;">נוכחי</label>
+          </div>
+        `;
+      }
+    }
+
+    function toggleAllMonths() {
+      const selectAll = document.getElementById('selectAllMonths').checked;
+      document.querySelectorAll('.monthCheckbox').forEach(function (cb) {
+        cb.checked = selectAll;
+      });
+    }
+
+    function getSelectedMonths() {
+      const checked = [];
+      document.querySelectorAll('.monthCheckbox').forEach(function (cb) {
+        if (cb.checked) checked.push(cb.value);
+      });
+      return checked;
+    }
+
+    function setSelectedMonths(sheetNames) {
+      document.querySelectorAll('.monthCheckbox').forEach(function (cb) {
+        cb.checked = sheetNames.indexOf(cb.value) !== -1;
+      });
+      const selectAllCb = document.getElementById('selectAllMonths');
+      if (selectAllCb) {
+        const all = document.querySelectorAll('.monthCheckbox').length;
+        selectAllCb.checked = (sheetNames.length === all);
+      }
+    }
+
+    const HEBREW_MONTHS = {
+      'ינואר': 1, 'פברואר': 2, 'מרץ': 3, 'מרס': 3, 'אפריל': 4, 'מאי': 5,
+      'יוני': 6, 'יולי': 7, 'אוגוסט': 8, 'ספטמבר': 9, 'אוקטובר': 10,
+      'נובמבר': 11, 'דצמבר': 12
+    };
+
+    function parseFreeText(text, availableSheets) {
+      let workingText = text;
+      const matchedSheets = new Set();
+
+      const numericMonthRegex = /(\d{1,2})[.\/](\d{2,4})/g;
+      let m;
+      while ((m = numericMonthRegex.exec(text)) !== null) {
+        const monthNum = parseInt(m[1], 10);
+        let yearNum = parseInt(m[2], 10);
+        if (yearNum < 100) yearNum += 2000;
+        availableSheets.forEach(function (name) {
+          const lbl = sheetLabel(name);
+          const pm = lbl.match(/^(\d{1,2})\.(\d{2,4})$/);
+          if (pm) {
+            const lm = parseInt(pm[1], 10);
+            let ly = parseInt(pm[2], 10);
+            if (ly < 100) ly += 2000;
+            if (lm === monthNum && ly === yearNum) matchedSheets.add(name);
+          }
+        });
+        workingText = workingText.split(m[0]).join(' ');
+      }
+
+      const yearMatch = text.match(/\b(20\d{2})\b/);
+      Object.keys(HEBREW_MONTHS).forEach(function (name) {
+        if (workingText.indexOf(name) === -1) return;
+        const monthNum = HEBREW_MONTHS[name];
+        let candidates = availableSheets.filter(function (sName) {
+          const lbl = sheetLabel(sName);
+          const pm = lbl.match(/^(\d{1,2})\.(\d{2,4})$/);
+          return pm && parseInt(pm[1], 10) === monthNum;
+        });
+        if (yearMatch) {
+          const yearNum = parseInt(yearMatch[1], 10);
+          const filtered = candidates.filter(function (sName) {
+            const lbl = sheetLabel(sName);
+            const pm = lbl.match(/^(\d{1,2})\.(\d{2,4})$/);
+            let ly = parseInt(pm[2], 10);
+            if (ly < 100) ly += 2000;
+            return ly === yearNum;
+          });
+          if (filtered.length > 0) candidates = filtered;
+        }
+        if (candidates.length > 1) {
+          candidates = candidates.slice().sort(function (a, b) {
+            return monthKey(sheetLabel(b)) - monthKey(sheetLabel(a));
+          });
+          candidates = [candidates[0]];
+        }
+        candidates.forEach(function (c) { matchedSheets.add(c); });
+        workingText = workingText.split(name).join(' ');
+      });
+
+      workingText = workingText.replace(/\b20\d{2}\b/g, ' ');
+
+      const customerMatches = workingText.match(/\d{4,6}/g) || [];
+
+      return {
+        customers: [...new Set(customerMatches)],
+        sheets: Array.from(matchedSheets)
+      };
+    }
+
+    function handleFreeTextSearch() {
+      const text = document.getElementById('freeTextInput').value.trim();
+      const errorDiv = document.getElementById('searchError');
+
+      if (!text) {
+        errorDiv.innerText = 'יש להזין טקסט לחיפוש.';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+
+      const available = window.loadedMonths || [];
+      const parsed = parseFreeText(text, available);
+
+      if (parsed.customers.length === 0) {
+        errorDiv.innerText = 'לא זוהו מספרי לקוח בטקסט. נסו לנסח מחדש, למשל: "לקוח 3974 לחודש ספטמבר".';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+
+      errorDiv.classList.add('hidden');
+      document.getElementById('customersInput').value = parsed.customers.join(', ');
+
+      if (parsed.sheets.length > 0) {
+        setSelectedMonths(parsed.sheets);
+      }
+
+      handleSearch();
+    }
+
+    async function handleLogin() {
+      const user = document.getElementById('username').value.trim();
+      const pass = document.getElementById('password').value;
+      const errorDiv = document.getElementById('loginError');
+      const btn = document.getElementById('loginBtn');
+
+      if (!user || !pass) {
+        errorDiv.innerText = 'יש להזין שם משתמש וסיסמה.';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = 'מתחבר...';
+
+      try {
+        const response = await callApi({ action: 'login', username: user, password: pass });
+
+        if (response.ok) {
+          sessionStorage.setItem('username', user);
+          sessionStorage.setItem('password', pass);
+
+          document.getElementById('loginSection').classList.add('hidden');
+          document.getElementById('searchSection').classList.remove('hidden');
+          document.getElementById('welcomeText').innerText =
+            'שלום, ' + response.name + ' (' + (response.access === 'הכל' ? 'מנהל / הכל' : 'משווק') + ')';
+          errorDiv.classList.add('hidden');
+
+          await loadMonths();
+        } else {
+          errorDiv.innerText = response.message;
+          errorDiv.classList.remove('hidden');
+        }
+      } catch (err) {
+        errorDiv.innerText = 'שגיאת תקשורת מול השרת.';
+        errorDiv.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'התחבר';
+      }
+    }
+
+    function handleLogout() {
+      sessionStorage.clear();
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+      document.getElementById('customersInput').value = '';
+      document.getElementById('monthsBox').innerHTML = '';
+      document.getElementById('searchSection').classList.add('hidden');
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('resultsContainer').innerHTML = '';
+    }
+
+    async function handleSearch() {
+      const user = sessionStorage.getItem('username');
+      const pass = sessionStorage.getItem('password');
+      const rawInput = document.getElementById('customersInput').value;
+      const selectedMonths = getSelectedMonths();
+      const errorDiv = document.getElementById('searchError');
+      const btn = document.getElementById('searchBtn');
+
+      const customerNumbers = rawInput.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
+
+      if (customerNumbers.length === 0) {
+        errorDiv.innerText = 'יש להזין לפחות מספר לקוח אחד.';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+      if (selectedMonths.length === 0) {
+        errorDiv.innerText = 'יש לבחור לפחות מחירון אחד.';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+
+      errorDiv.classList.add('hidden');
+      btn.disabled = true;
+      btn.innerText = 'מחפש...';
+
+      try {
+        const response = await callApi({
+          action: 'lookup',
+          username: user,
+          password: pass,
+          customers: customerNumbers.join(','),
+          sheets: selectedMonths.join(',')
+        });
+
+        if (!response.ok) {
+          errorDiv.innerText = response.message;
+          errorDiv.classList.remove('hidden');
+          return;
+        }
+        renderResults(response.results);
+      } catch (err) {
+        errorDiv.innerText = 'שגיאה בביצוע החיפוש.';
+        errorDiv.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = 'חפש מחירים';
+      }
+    }
+
+    function compareCustomers(a, b) {
+      const na = Number(a);
+      const nb = Number(b);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return String(a).localeCompare(String(b));
+    }
+
+    function renderResults(results) {
+      const container = document.getElementById('resultsContainer');
+      if (!results || results.length === 0) {
+        container.innerHTML = '<p>לא נמצאו תוצאות.</p>';
+        return;
+      }
+
+      results = results.slice().sort(function (a, b) {
+        const byCustomer = compareCustomers(a.customer, b.customer);
+        if (byCustomer !== 0) return byCustomer;
+        return monthKey(b.label) - monthKey(a.label);
+      });
+
+      let html = `
+        <table>
+          <thead>
+            <tr>
+              <th>מספר לקוח</th>
+              <th>מחירון</th>
+              <th>סטטוס</th>
+              <th>מחיר חוץ</th>
+              <th>מחיר דלקנים</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      results.forEach(item => {
+        const statusClass = item.found ? 'found' : 'not-found';
+        const statusText = item.found ? 'נמצא' : 'לא נמצא';
+        html += `
+          <tr>
+            <td><strong>${item.customer}</strong></td>
+            <td><span class="month-badge">${item.label || ''}</span></td>
+            <td class="${statusClass}">${statusText}</td>
+            <td>${item.outsidePrice || '-'}</td>
+            <td>${item.fuelPrice || '-'}</td>
+          </tr>
+        `;
+      });
+
+      html += `</tbody></table>`;
+      container.innerHTML = html;
+    }
+  </script>
+</body>
+</html>
