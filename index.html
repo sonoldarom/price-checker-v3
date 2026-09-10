@@ -1,3 +1,6 @@
+Вот полный код для копирования:
+
+```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -213,9 +216,8 @@
       <div id="searchError" class="error hidden"></div>
 
       <div class="form-group">
-        <label for="freeTextInput">חיפוש בשפה חופשית:</label>
-        <textarea id="freeTextInput" placeholder='לדוגמה:&#10;לקוח 3974 חודש ספטמבר&#10;לקוחות 3974, 3977 חודשים אוגוסט, ספטמבר'></textarea>
-        <button type="button" id="freeTextBtn" onclick="handleFreeTextSearch()" style="margin-top:8px;">נתח וחפש</button>
+        <button type="button" id="voiceBtn" onclick="startVoiceSearch()" style="background-color:#28a745;">🎤 חיפוש בקול</button>
+        <div id="voiceStatus" style="text-align:center; margin-top:6px; font-size:14px; color:#666;"></div>
       </div>
 
       <div class="form-group">
@@ -224,8 +226,8 @@
       </div>
 
       <div class="form-group">
-        <label for="customersInput">מספרי לקוח (ניתן להזין מספר אחד או כמה מופרדים בפסיקים/שורה):</label>
-        <textarea id="customersInput" placeholder="לדוגמה: 3974, 3977"></textarea>
+        <label for="customersInput">מספרי לקוח (אפשר להקליד מספרים, או ללחוץ על סמל המיקרופון במקלדת ולומר בקול חופשי, למשל: "לקוח 3974 חודש ספטמבר"):</label>
+        <textarea id="customersInput" placeholder="לדוגמה: 3974, 3977 &#10;או בקול: לקוח 3974 חודש ספטמבר"></textarea>
       </div>
       <button id="searchBtn" onclick="handleSearch()">חפש מחירים</button>
 
@@ -418,33 +420,59 @@
       };
     }
 
-    function handleFreeTextSearch() {
-      const text = document.getElementById('freeTextInput').value.trim();
+    function startVoiceSearch() {
+      const statusDiv = document.getElementById('voiceStatus');
       const errorDiv = document.getElementById('searchError');
+      const btn = document.getElementById('voiceBtn');
 
-      if (!text) {
-        errorDiv.innerText = 'יש להזין טקסט לחיפוש.';
+      const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognitionApi) {
+        errorDiv.innerText = 'הדפדפן הזה לא תומך בחיפוש קולי. אפשר להקליד ידנית בשדה למטה, או ללחוץ על סמל המיקרופון שבמקלדת עצמה.';
         errorDiv.classList.remove('hidden');
         return;
       }
 
-      const available = window.loadedMonths || [];
-      const parsed = parseFreeText(text, available);
+      const recognition = new SpeechRecognitionApi();
+      recognition.lang = 'he-IL';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
 
-      if (parsed.customers.length === 0) {
-        errorDiv.innerText = 'לא זוהו מספרי לקוח בטקסט. נסו לנסח מחדש, למשל: "לקוח 3974 לחודש ספטמבר".';
-        errorDiv.classList.remove('hidden');
-        return;
-      }
-
+      btn.disabled = true;
+      btn.innerText = '🎤 מקשיב...';
+      statusDiv.innerText = 'דברו עכשיו...';
       errorDiv.classList.add('hidden');
-      document.getElementById('customersInput').value = parsed.customers.join(', ');
 
-      if (parsed.sheets.length > 0) {
-        setSelectedMonths(parsed.sheets);
-      }
+      recognition.onresult = function (event) {
+        const transcript = event.results[0][0].transcript;
+        statusDiv.innerText = 'זוהה: "' + transcript + '"';
 
-      handleSearch();
+        const available = window.loadedMonths || [];
+        const parsed = parseFreeText(transcript, available);
+
+        if (parsed.customers.length > 0) {
+          document.getElementById('customersInput').value = parsed.customers.join(', ');
+        }
+        if (parsed.sheets.length > 0) {
+          setSelectedMonths(parsed.sheets);
+        }
+        if (parsed.customers.length === 0) {
+          errorDiv.innerText = 'לא זוהה מספר לקוח בדיבור. נסו שוב, למשל: "111597 ספטמבר".';
+          errorDiv.classList.remove('hidden');
+        }
+      };
+
+      recognition.onerror = function (event) {
+        statusDiv.innerText = '';
+        errorDiv.innerText = 'שגיאה בזיהוי קולי. נסו שוב.';
+        errorDiv.classList.remove('hidden');
+      };
+
+      recognition.onend = function () {
+        btn.disabled = false;
+        btn.innerText = '🎤 חיפוש בקול';
+      };
+
+      recognition.start();
     }
 
     async function handleLogin() {
@@ -494,6 +522,7 @@
       document.getElementById('username').value = '';
       document.getElementById('password').value = '';
       document.getElementById('customersInput').value = '';
+      document.getElementById('voiceStatus').innerText = '';
       document.getElementById('monthsBox').innerHTML = '';
       document.getElementById('searchSection').classList.add('hidden');
       document.getElementById('loginSection').classList.remove('hidden');
@@ -503,18 +532,37 @@
     async function handleSearch() {
       const user = sessionStorage.getItem('username');
       const pass = sessionStorage.getItem('password');
-      const rawInput = document.getElementById('customersInput').value;
-      const selectedMonths = getSelectedMonths();
+      const rawInput = document.getElementById('customersInput').value.trim();
       const errorDiv = document.getElementById('searchError');
       const btn = document.getElementById('searchBtn');
 
-      const customerNumbers = rawInput.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
-
-      if (customerNumbers.length === 0) {
+      if (!rawInput) {
         errorDiv.innerText = 'יש להזין לפחות מספר לקוח אחד.';
         errorDiv.classList.remove('hidden');
         return;
       }
+
+      const isPlainNumbers = /^[\d\s,\n]+$/.test(rawInput);
+      let customerNumbers;
+
+      if (isPlainNumbers) {
+        customerNumbers = rawInput.split(/[\n,]+/).map(s => s.trim()).filter(s => s.length > 0);
+      } else {
+        const available = window.loadedMonths || [];
+        const parsed = parseFreeText(rawInput, available);
+        customerNumbers = parsed.customers;
+        if (parsed.sheets.length > 0) {
+          setSelectedMonths(parsed.sheets);
+        }
+      }
+
+      if (customerNumbers.length === 0) {
+        errorDiv.innerText = 'לא זוהו מספרי לקוח. נסו לנסח מחדש, למשל: "לקוח 3974 לחודש ספטמבר".';
+        errorDiv.classList.remove('hidden');
+        return;
+      }
+
+      const selectedMonths = getSelectedMonths();
       if (selectedMonths.length === 0) {
         errorDiv.innerText = 'יש לבחור לפחות מחירון אחד.';
         errorDiv.classList.remove('hidden');
@@ -603,3 +651,4 @@
   </script>
 </body>
 </html>
+```
