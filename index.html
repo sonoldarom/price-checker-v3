@@ -1,3 +1,6 @@
+Вот полный код для копирования:
+
+```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -34,7 +37,6 @@
       margin-bottom: 5px;
       font-weight: bold;
     }
-    /* 16px חובה כדי למנוע Auto-Zoom באייפון */
     input, textarea {
       width: 100%;
       padding: 10px;
@@ -192,7 +194,6 @@
   <div class="container">
     <h2>בדיקת מחיר ללקוח</h2>
 
-    <!-- מסך התחברות -->
     <div id="loginSection">
       <div id="loginError" class="error hidden"></div>
       <div class="form-group">
@@ -206,7 +207,6 @@
       <button id="loginBtn" onclick="handleLogin()">התחבר</button>
     </div>
 
-    <!-- מסך חיפוש (מוסתר בהתחלה) -->
     <div id="searchSection" class="hidden">
       <div class="user-info">
         <span id="welcomeText"></span>
@@ -237,11 +237,9 @@
   </div>
 
   <script>
-    // כתובת ה-Web App של Apps Script (הפרויקט הנפרד)
     const EXEC_URL = 'https://script.google.com/macros/s/AKfycbyf-JecNS9ZyReWG3_x8G6yFib-gcYRbs0GaSTQmfmQG30ILKH2tcJ-1IpnSDmM6cdI7A/exec';
     const SHEET_PREFIX = 'מחירים';
 
-    // שליחת בקשה ל-Apps Script דרך GET (עוקף CORS, בניגוד ל-POST)
     async function callApi(params) {
       const url = new URL(EXEC_URL);
       Object.keys(params).forEach(function (key) {
@@ -256,7 +254,6 @@
       return res.json();
     }
 
-    // הופך "מחירים 8.26" ל-"8.26", ו"מחירים" (בלי המשך) ל-"נוכחי"
     function sheetLabel(name) {
       const trimmed = String(name || '').trim();
       if (trimmed === SHEET_PREFIX) return 'נוכחי';
@@ -277,8 +274,6 @@
       }
     };
 
-    // הופך תווית כמו "8.26" למספר בר-השוואה (2608), כדי למיין מהחדש לישן.
-    // תוויות לא-מספריות (כמו "נוכחי") נחשבות "העדכניות ביותר"
     function monthKey(label) {
       const m = String(label || '').trim().match(/^(\d{1,2})\.(\d{2,4})$/);
       if (m) {
@@ -297,7 +292,6 @@
         const response = await callApi({ action: 'months' });
         let months = (response.ok && response.months) ? response.months : [SHEET_PREFIX];
 
-        // מיון מהחדש לישן לפי התווית (8.26 לפני 7.26 וכו')
         months = months.slice().sort(function (a, b) {
           return monthKey(sheetLabel(b)) - monthKey(sheetLabel(a));
         });
@@ -312,7 +306,7 @@
         `;
         months.forEach(function (name, idx) {
           const id = 'month_' + idx;
-          const isLatest = idx === 0; // ברירת מחדל: רק החודש האחרון מסומן
+          const isLatest = idx === 0;
           html += `
             <label class="month-chip" for="${id}">
               <input type="checkbox" class="monthCheckbox" id="${id}" value="${name}" ${isLatest ? 'checked' : ''}>
@@ -364,12 +358,10 @@
       'נובמבר': 11, 'דצמבר': 12
     };
 
-    // מנתח טקסט חופשי: מוצא מספרי לקוח ושמות/תבניות חודשים, בלי AI - לפי מילות מפתח וביטויים רגולריים
     function parseFreeText(text, availableSheets) {
       let workingText = text;
       const matchedSheets = new Set();
 
-      // שלב 1: תבניות מספריות מפורשות כמו "8.26" או "8/26"
       const numericMonthRegex = /(\d{1,2})[.\/](\d{2,4})/g;
       let m;
       while ((m = numericMonthRegex.exec(text)) !== null) {
@@ -389,7 +381,6 @@
         workingText = workingText.split(m[0]).join(' ');
       }
 
-      // שלב 2: שמות חודשים בעברית
       const yearMatch = text.match(/\b(20\d{2})\b/);
       Object.keys(HEBREW_MONTHS).forEach(function (name) {
         if (workingText.indexOf(name) === -1) return;
@@ -420,10 +411,8 @@
         workingText = workingText.split(name).join(' ');
       });
 
-      // שלב 3: ניקוי שנים (כמו 2026) כדי שלא ייחשבו בטעות כמספרי לקוח
       workingText = workingText.replace(/\b20\d{2}\b/g, ' ');
 
-      // שלב 4: כל מה שנשאר - רצפים של 4 עד 6 ספרות נחשבים למספרי לקוח
       const customerMatches = workingText.match(/\d{4,6}/g) || [];
 
       return {
@@ -432,12 +421,19 @@
       };
     }
 
-    
+    let activeRecognition = null;
+
+    function stopVoiceSearch() {
+      if (activeRecognition) {
+        activeRecognition.stop();
+      }
+    }
 
     function startVoiceSearch() {
       const statusDiv = document.getElementById('voiceStatus');
       const errorDiv = document.getElementById('searchError');
       const btn = document.getElementById('voiceBtn');
+      const stopBtn = document.getElementById('stopVoiceBtn');
 
       const SpeechRecognitionApi = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognitionApi) {
@@ -447,12 +443,14 @@
       }
 
       const recognition = new SpeechRecognitionApi();
+      activeRecognition = recognition;
       recognition.lang = 'he-IL';
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
 
       btn.disabled = true;
       btn.innerText = '🎤 מקשיב...';
+      stopBtn.style.display = 'block';
       statusDiv.innerText = 'דברו עכשיו...';
       errorDiv.classList.add('hidden');
 
@@ -472,6 +470,8 @@
         if (parsed.customers.length === 0) {
           errorDiv.innerText = 'לא זוהה מספר לקוח בדיבור. נסו שוב, למשל: "111597 ספטמבר".';
           errorDiv.classList.remove('hidden');
+        } else {
+          handleSearch();
         }
       };
 
@@ -484,6 +484,8 @@
       recognition.onend = function () {
         btn.disabled = false;
         btn.innerText = '🎤 חיפוש בקול';
+        stopBtn.style.display = 'none';
+        activeRecognition = null;
       };
 
       recognition.start();
@@ -556,8 +558,6 @@
         return;
       }
 
-      // אם הקלט מכיל רק מספרים, פסיקים, רווחים וירידות שורה - מתייחסים אליו כרשימה רגילה.
-      // אחרת (יש בו מילים) - מנתחים אותו כטקסט חופשי (גם כזה שהוקלד וגם כזה שהוכתב בקול)
       const isPlainNumbers = /^[\d\s,\n]+$/.test(rawInput);
       let customerNumbers;
 
@@ -627,7 +627,6 @@
         return;
       }
 
-      // מיון: לפי מספר לקוח עולה, ובתוך אותו לקוח - מהחודש האחרון לישן
       results = results.slice().sort(function (a, b) {
         const byCustomer = compareCustomers(a.customer, b.customer);
         if (byCustomer !== 0) return byCustomer;
@@ -668,3 +667,4 @@
   </script>
 </body>
 </html>
+```
