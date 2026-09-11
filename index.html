@@ -1,3 +1,6 @@
+Вот полный код для копирования:
+
+```html
 <!DOCTYPE html>
 <html>
 <head>
@@ -224,7 +227,7 @@
 
       <div class="form-group">
         <label for="customersInput">מספרי לקוח (אפשר להקליד מספרים, או ללחוץ על סמל המיקרופון במקלדת ולומר בקול חופשי, למשל: "לקוח 3974 חודש ספטמבר"):</label>
-        <textarea id="customersInput" placeholder="לדוגמה: 3974, 3977 &#10;או בקול: לקוח 3974 חודש ספטמבר"></textarea>
+        <textarea id="customersInput" inputmode="numeric" placeholder="לדוגמה: 3974, 3977 &#10;או בקול: לקוח 3974 חודש ספטמבר"></textarea>
       </div>
       <button id="searchBtn" onclick="handleSearch()">חפש מחירים</button>
 
